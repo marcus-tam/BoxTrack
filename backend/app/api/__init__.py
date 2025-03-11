@@ -1,0 +1,4 @@
+docs/
+    api/
+    deployment/
+    development/
