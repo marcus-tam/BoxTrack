@@ -1,0 +1,12 @@
+move to the frontend folder and use 
+` node app.js `
+to run the server and corresponding front-end code
+
+Dependencies:
+- express
+- bootstrap
+- jquery
+
+Express must be installed through NPM.
+
+Bootstrap and jquery CAN be installed through NPM, but are also included through a Content Delivery Network (included inline)
