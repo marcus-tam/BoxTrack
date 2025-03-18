@@ -14,10 +14,6 @@ CREATE TABLE locations (
     location_name VARCHAR(50) NOT NULL,
     location_category VARCHAR(50) NOT NULL, --ie. Attic, Storage Unit, House, etc.
     location_address VARCHAR(50) NOT NULL,
-    location_city VARCHAR(50) NOT NULL,
-    location_province VARCHAR(50) NOT NULL,
-    location_lon VARCHAR(50) NOT NULL,
-    location_lat VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 )
