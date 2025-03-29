@@ -49,9 +49,7 @@ class Box(db.Model):
     box_id = db.Column(db.Integer, primary_key=True) 
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)  
     location_id = db.Column(db.Integer, db.ForeignKey('locations.location_id'), nullable=False) 
-    box_creator = db.Column(db.Integer, nullable=False) 
-    box_type = db.Column(db.String(50), nullable=False)  
-    qr_code = db.Column(db.String(255), nullable=False)  
+    box_type = db.Column(db.String(50), nullable=False)   
     box_name = db.Column(db.String(50), nullable=False)  
     box_description = db.Column(db.String(50), nullable=False)  
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  
@@ -59,7 +57,7 @@ class Box(db.Model):
 
     
     def __repr__(self):
-        return f"Box(box_id={self.box_id}, box_name='{self.box_name}', box_type='{self.box_type}', qr_code='{self.qr_code}')"
+        return f"Box(box_id={self.box_id}, box_name='{self.box_name}', box_type='{self.box_type}')"
 
 
 class Item(db.Model):
@@ -72,12 +70,27 @@ class Item(db.Model):
     item_category = db.Column(db.String(50), nullable=False)  
     item_description = db.Column(db.String(50), nullable=False)  
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
     def __repr__(self):
         return f"Item(item_id={self.item_id}, item_name='{self.item_name}', item_category='{self.item_category}', item_description='{self.item_description}')"
 
+class Box_Access(db.Model):
+    __tablename__ = 'box_access'    
+    user_id = db.Column(db.Integer, nullable=False)
+    box_id = db.Column(db.Integer, nullable=False)
+    access_level = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)  
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Define the composite primary key
+    __table_args__ = (
+        db.PrimaryKeyConstraint('user_id', 'box_id'),  # Composite primary key
+    )
+
+    def __repr__(self):
+        return f"Box_Access(user_id={self.user_id}, box_id={self.box_id}, access_level='{self.access_level}')"
 
 class RequestParsers:
     @staticmethod
@@ -108,7 +121,6 @@ class RequestParsers:
         parser.add_argument('location_id', type=int, help='Location ID is required', required=True)
         parser.add_argument('box_creator', type=int, help='Box creator is required', required=True)
         parser.add_argument('box_type', type=str, help='Box type is required', required=True)
-        parser.add_argument('qr_code', type=str, help='QR code is required', required=True)
         parser.add_argument('box_name', type=str, help='Box name is required', required=True)
         parser.add_argument('box_description', type=str, help='Box description is required', required=True)
         return parser
@@ -123,6 +135,15 @@ class RequestParsers:
         parser.add_argument('item_image_ref', type=str, help='Item image reference is required', required=True)
         parser.add_argument('item_category', type=str, help='Item category is required', required=True)
         parser.add_argument('item_description', type=str, help='Item description is required', required=True)
+        return parser
+
+    @staticmethod
+    def box_access_parser():
+        
+        parser = reqparse.RequestParser()
+        parser.add_argument('user_id', type=int, help='User ID is required', required=True)
+        parser.add_argument('box_id', type=int, help='Box ID is required', required=True)
+        parser.add_argument('access_level', type=str, help='Access level is required', required=True)
         return parser
 
 # Define a class for db models into API responses
@@ -155,7 +176,6 @@ class SerializationFields:
         'location_id': fields.Integer,
         'box_creator': fields.Integer,
         'box_type': fields.String,
-        'qr_code': fields.String,
         'box_name': fields.String,
         'box_description': fields.String,
         'created_at': fields.DateTime,
@@ -171,6 +191,14 @@ class SerializationFields:
         'item_image_ref': fields.String,
         'item_category': fields.String,
         'item_description': fields.String,
+        'created_at': fields.DateTime,
+        'updated_at': fields.DateTime
+    }
+
+    box_access_fields = {
+        'user_id': fields.Integer,
+        'box_id': fields.Integer,
+        'access_level': fields.String,
         'created_at': fields.DateTime,
         'updated_at': fields.DateTime
     }
@@ -240,7 +268,6 @@ class BoxResource(Resource):
             location_id=args['location_id'],
             box_creator=args['box_creator'],
             box_type=args['box_type'],
-            qr_code=args['qr_code'],
             box_name=args['box_name'],
             box_description=args['box_description']
         )
@@ -275,6 +302,35 @@ class ItemResource(Resource):
         db.session.add(new_item)
         db.session.commit()
         return new_item, 201
+    
+
+class BoxAccessResource(Resource):
+    @marshal_with(SerializationFields.box_access_fields)
+    def get(self):
+        # Fetch all box access records
+        box_access_records = Box_Access.query.all()
+        return box_access_records
+
+    @marshal_with(SerializationFields.box_access_fields)
+    def post(self):
+        # Parse the incoming request data
+        parser = reqparse.RequestParser()
+        parser.add_argument('user_id', type=int, help='User ID is required', required=True)
+        parser.add_argument('box_id', type=int, help='Box ID is required', required=True)
+        parser.add_argument('access_level', type=str, help='Access level is required', required=True)
+        args = parser.parse_args()
+
+        # Create a new Box_Access record
+        new_access = Box_Access(
+            user_id=args['user_id'],
+            box_id=args['box_id'],
+            access_level=args['access_level']
+        )
+
+        db.session.add(new_access)
+        db.session.commit()
+        return new_access, 201
+
 
 # Define a class for validating if records already exist in the database
 class Validators:
@@ -303,6 +359,12 @@ class Validators:
         if item:
             abort(400, message=f"Item with ID {item_id} already exists.")
 
+    @staticmethod
+    def check_box_access_exists(user_id, box_id):
+        box_access = Box_Access.query.filter_by(user_id=user_id, box_id=box_id).first()
+        if box_access:
+            abort(400, message=f"Box access for user {user_id} and box {box_id} already exists.")
+
 # For registering API resources
 class APIResources:
     @staticmethod
@@ -312,6 +374,7 @@ class APIResources:
         api.add_resource(LocationResource, '/api/locations')
         api.add_resource(BoxResource, '/api/boxes')
         api.add_resource(ItemResource, '/api/items')
+        api.add_resource(BoxAccessResource, '/api/box_access')
 
 class APIResourcesWithID:
     @staticmethod
@@ -321,6 +384,7 @@ class APIResourcesWithID:
         api.add_resource(LocationResource, '/api/locations', '/api/locations/<int:location_id>')
         api.add_resource(BoxResource, '/api/boxes', '/api/boxes/<int:box_id>')
         api.add_resource(ItemResource, '/api/items', '/api/items/<int:item_id>')
+        api.add_resource(BoxAccessResource, '/api/box_access', '/api/box_access/<int:user_id>/<int:box_id>')
 
 # Register all resources
 APIResources.register_resources(api)
